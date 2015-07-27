@@ -11,7 +11,7 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-
+import platform
 from oslo.config import cfg
 
 
@@ -69,6 +69,10 @@ FILE_OPTIONS = {
                         'to set this value if the base URL contains a path '
                         '(eg /prefix/v2.0) or the endpoint should be found on '
                         'a different server.'),
+        cfg.IntOpt('public_workers', default=1,
+                   help='public workers of keystone'),
+        cfg.IntOpt('admin_workers', default=1,
+                   help='admin workers of keystone'),
         cfg.StrOpt('onready',
                    help='onready allows you to send a notification when the '
                         'process is ready to serve For example, to have it '
@@ -640,7 +644,12 @@ FILE_OPTIONS = {
                    help='Keystone catalog backend driver.'),
         cfg.IntOpt('list_limit', default=None,
                    help='Maximum number of entities that will be returned '
-                        'in a catalog collection.')],
+                        'in a catalog collection.'),
+        cfg.StrOpt('idc',
+                   default='hf',
+                   help='the idc where keystone deployed')],
+    'extra_headers': [
+        cfg.StrOpt('Distribution', default=platform.dist()[0])],
     'kvs': [
         cfg.ListOpt('backends', default=[],
                     help='Extra dogpile.cache backend modules to register '
