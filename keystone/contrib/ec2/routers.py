@@ -43,10 +43,20 @@ class Ec2Extension(wsgi.ExtensionRouter):
             action='get_credential',
             conditions=dict(method=['GET']))
         mapper.connect(
+            '/tenant/{tenant_id}/credentials/OS-EC2',
+            controller=ec2_controller,
+            action='get_credential_by_project_id',
+            conditions=dict(method=['GET']))
+        mapper.connect(
             '/users/{user_id}/credentials/OS-EC2/{credential_id}',
             controller=ec2_controller,
             action='delete_credential',
             conditions=dict(method=['DELETE']))
+        mapper.connect(
+            '/credentials/OS-EC2/{credential_id}',
+            controller=ec2_controller,
+            action='get_credential_by_access_key',
+            conditions=dict(method=['GET']))
 
 
 class Ec2ExtensionV3(wsgi.ExtensionRouter):
@@ -81,3 +91,4 @@ class Ec2ExtensionV3(wsgi.ExtensionRouter):
             controller=ec2_controller,
             action='ec2_delete_credential',
             conditions=dict(method=['DELETE']))
+

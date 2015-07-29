@@ -55,6 +55,19 @@ from keystone import token
 class Ec2ControllerCommon(object):
     def check_signature(self, creds_ref, credentials):
         signer = ec2_utils.Ec2Signer(creds_ref['secret'])
+
+        if 'signature' not in credentials:
+            if 'secret' not in credentials:
+                raise exception.Unauthorized(message='invalid EC2 secret')
+
+            credentials['params'] =  {'SignatureVersion': '2'}
+            credentials['verb'] = 'GET'
+            credentials['host'] = 'localhost'
+            credentials['path'] = '/service/cloud'
+
+            in_signer =ec2_utils.Ec2Signer(credentials['secret'])
+            credentials['signature'] = in_signer.generate(credentials)
+
         signature = signer.generate(credentials)
         if utils.auth_str_equal(credentials['signature'], signature):
             return
@@ -150,12 +163,14 @@ class Ec2ControllerCommon(object):
         :returns: credential: dict of ec2 credential
         """
 
-        self.identity_api.get_user(user_id)
-        self.assignment_api.get_project(tenant_id)
+        user_ref = self.identity_api.get_user(user_id)
+        tenant_ref = self.assignment_api.get_project(tenant_id)
         trust_id = self._get_trust_id_for_request(context)
         blob = {'access': uuid.uuid4().hex,
                 'secret': uuid.uuid4().hex,
-                'trust_id': trust_id}
+                'trust_id': trust_id,
+                'user_name':user_ref['name'],
+                'tenant_name': tenant_ref['name']}
         credential_id = utils.hash_access_key(blob['access'])
         cred_ref = {'user_id': user_id,
                     'project_id': tenant_id,
@@ -188,9 +203,20 @@ class Ec2ControllerCommon(object):
         :param credential_id: access key for credentials
         :returns: credential: dict of ec2 credential
         """
-
-        self.identity_api.get_user(user_id)
+        if user_id:
+            self.identity_api.get_user(user_id)
         return {'credential': self._get_credentials(credential_id)}
+
+    def get_credential_by_project_id(self, tenant_id):
+        user_ids = self.assignment_api.list_user_ids_for_project(tenant_id)
+        credential_refs = []
+        for user_id in user_ids:
+            user_ref = self.identity_api.get_user(user_id)
+            credentials = self.credential_api.list_credentials(user_id=user_id)
+            for credential in credentials:
+                credential_refs.append(self._convert_v3_to_ec2_credential(credential, user_ref['name']))
+
+        return {'credentials':credential_refs}
 
     def delete_credential(self, user_id, credential_id):
         """Delete a user's access/secret pair.
@@ -208,7 +234,7 @@ class Ec2ControllerCommon(object):
         return self.credential_api.delete_credential(ec2_credential_id)
 
     @staticmethod
-    def _convert_v3_to_ec2_credential(credential):
+    def _convert_v3_to_ec2_credential(credential, user_name = None):
         # Prior to bug #1259584 fix, blob was stored unserialized
         # but it should be stored as a json string for compatibility
         # with the v3 credentials API.  Fall back to the old behavior
@@ -217,11 +243,17 @@ class Ec2ControllerCommon(object):
             blob = jsonutils.loads(credential['blob'])
         except TypeError:
             blob = credential['blob']
-        return {'user_id': credential.get('user_id'),
+
+        cred_ref = {'user_id': credential.get('user_id'),
                 'tenant_id': credential.get('project_id'),
                 'access': blob.get('access'),
                 'secret': blob.get('secret'),
                 'trust_id': blob.get('trust_id')}
+
+        if user_name:
+            cred_ref['user_name'] = user_name
+
+        return cred_ref
 
     def _get_credentials(self, credential_id):
         """Return credentials from an ID.
@@ -287,7 +319,14 @@ class Ec2Controller(Ec2ControllerCommon, controller.V2Controller):
             self._assert_owner(user_id, credential_id)
         return super(Ec2Controller, self).delete_credential(user_id,
                                                             credential_id)
-
+    @controller.v2_deprecated
+    def get_credential_by_project_id(self, context, tenant_id):
+        return super(Ec2Controller, self).get_credential_by_project_id(tenant_id)
+		
+    @controller.v2_deprecated
+    def get_credential_by_access_key(self, context, credential_id):
+        return super(Ec2Controller, self).get_credential(None, credential_id)
+		
     def _assert_identity(self, context, user_id):
         """Check that the provided token belongs to the user.
 
@@ -400,3 +439,4 @@ def render_token_data_response(token_id, token_data):
 
     return wsgi.render_response(body=token_data,
                                 status=(200, 'OK'), headers=headers)
+
