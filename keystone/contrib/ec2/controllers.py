@@ -47,7 +47,9 @@ from keystone.common import wsgi
 from keystone import exception
 from keystone.i18n import _
 from keystone.models import token_model
+from oslo_log import log
 
+LOG = log.getLogger(__name__)
 
 @dependency.requires('assignment_api', 'catalog_api', 'credential_api',
                      'identity_api', 'resource_api', 'role_api',
@@ -56,6 +58,19 @@ from keystone.models import token_model
 class Ec2ControllerCommon(object):
     def check_signature(self, creds_ref, credentials):
         signer = ec2_utils.Ec2Signer(creds_ref['secret'])
+
+        if 'signature' not in credentials:
+            if 'secret' not in credentials:
+                raise exception.Unauthorized(message='invalid EC2 secret')
+
+            credentials['params'] =  {'SignatureVersion': '2'}
+            credentials['verb'] = 'GET'
+            credentials['host'] = 'localhost'
+            credentials['path'] = '/service/cloud'
+
+            in_signer =ec2_utils.Ec2Signer(credentials['secret'])
+            credentials['signature'] = in_signer.generate(credentials)
+
         signature = signer.generate(credentials)
         # NOTE(davechen): credentials.get('signature') is not guaranteed to
         # exist, we need check it explicitly.
@@ -139,6 +154,8 @@ class Ec2ControllerCommon(object):
             metadata_ref['trust_id'] = trust_id
             metadata_ref['trustee_user_id'] = user_ref['id']
 
+	LOG.error("_authenticate start")
+
         # Validate that the auth info is valid and nothing is disabled
         try:
             self.identity_api.assert_user_enabled(
@@ -148,16 +165,20 @@ class Ec2ControllerCommon(object):
             self.resource_api.assert_project_enabled(
                 project_id=tenant_ref['id'], project=tenant_ref)
         except AssertionError as e:
+	    LOG.error("_authenticate %s", str(e))
             six.reraise(exception.Unauthorized, exception.Unauthorized(e),
                         sys.exc_info()[2])
 
         roles = metadata_ref.get('roles', [])
         if not roles:
+	    LOG.error("_authenticate role not valid")
             raise exception.Unauthorized(message='User not valid for tenant.')
         roles_ref = [self.role_api.get_role(role_id) for role_id in roles]
 
         catalog_ref = self.catalog_api.get_catalog(
             user_ref['id'], tenant_ref['id'])
+
+	LOG.error("_authenticate stop")
 
         return user_ref, tenant_ref, metadata_ref, roles_ref, catalog_ref
 
@@ -211,8 +232,8 @@ class Ec2ControllerCommon(object):
         :param credential_id: access key for credentials
         :returns: credential: dict of ec2 credential
         """
-
-        self.identity_api.get_user(user_id)
+        if user_id:
+            self.identity_api.get_user(user_id)
         return {'credential': self._get_credentials(credential_id)}
 
     def delete_credential(self, user_id, credential_id):
@@ -310,6 +331,9 @@ class Ec2Controller(Ec2ControllerCommon, controller.V2Controller):
             self._assert_owner(user_id, credential_id)
         return super(Ec2Controller, self).delete_credential(user_id,
                                                             credential_id)
+    @controller.v2_deprecated
+    def get_credential_by_access_key(self, context, credential_id):
+        return super(Ec2Controller, self).get_credential(None, credential_id)
 
     def _assert_identity(self, context, user_id):
         """Check that the provided token belongs to the user.

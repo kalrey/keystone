@@ -59,7 +59,11 @@ class Ec2Extension(wsgi.ExtensionRouter):
             controller=ec2_controller,
             action='delete_credential',
             conditions=dict(method=['DELETE']))
-
+        mapper.connect(
+            '/credentials/OS-EC2/{credential_id}',
+            controller=ec2_controller,
+            action='get_credential_by_access_key',
+            conditions=dict(method=['GET']))
 
 class Ec2ExtensionV3(wsgi.V3ExtensionRouter):
 
