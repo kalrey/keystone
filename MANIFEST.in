@@ -14,6 +14,7 @@ include TODO
 include tox.ini
 include etc/*
 include httpd/*
+include requirements.txt test-requirements.txt
 graft bin
 graft doc
 graft keystone/tests
