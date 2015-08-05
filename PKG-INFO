@@ -1,9 +1,9 @@
 Metadata-Version: 1.1
 Name: keystone
-Version: 2015.1.0.iflytek
+Version: 2015.1.0
 Summary: OpenStack Identity
 Home-page: http://www.openstack.org/
-Author: OpenStack(hjyang)
+Author: OpenStack(iflytek)
 Author-email: openstack-dev@lists.openstack.org
 License: UNKNOWN
 Description: ==================
