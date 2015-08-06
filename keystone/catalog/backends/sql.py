@@ -23,7 +23,9 @@ from keystone.common.sql import migration_helpers
 from keystone import config
 from keystone import exception
 from keystone.openstack.common.db.sqlalchemy import migration
-
+#Change by hjyang
+from keystone.assignment.backends.sql import Project
+#end by hjyang
 
 CONF = config.CONF
 
@@ -252,6 +254,11 @@ class Catalog(catalog.Driver):
                   'user_id': user_id})
 
         session = sql.get_session()
+		#change by hjyang
+        tenant_name = session.query(Project.name).filter(Project.id == tenant_id).scalar()
+        d.update({'tenant_name':tenant_name})
+		#end by hjyang
+
         endpoints = (session.query(Endpoint).
                      options(sql.joinedload(Endpoint.service)).
                      filter(Endpoint.enabled == True).all())  # flake8: noqa
