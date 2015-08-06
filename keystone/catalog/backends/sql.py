@@ -24,6 +24,9 @@ from keystone import catalog
 from keystone.catalog import core
 from keystone.common import sql
 from keystone import exception
+#change by hjyang
+from keystone.resource.backends.sql import Project
+#end by hjyang
 
 
 CONF = cfg.CONF
@@ -294,6 +297,9 @@ class Catalog(catalog.Driver):
             silent_keyerror_failures = ['tenant_id']
 
         session = sql.get_session()
+        tenant_name = session.query(Project.name).filter(Project.id == tenant_id).scalar()
+        substitutions.update({'tenant_name': tenant_name})
+
         endpoints = (session.query(Endpoint).
                      options(sql.joinedload(Endpoint.service)).
                      filter(Endpoint.enabled == true()).all())
