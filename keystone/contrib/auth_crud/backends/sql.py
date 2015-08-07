@@ -11,7 +11,10 @@
 # under the License.
 
 from keystone.common import sql
-from keystone.assignment.backends.sql import Project, Role, RoleAssignment, AssignmentType
+from keystone.resource.backends.sql import Project
+from keystone.assignment.backends.sql import RoleAssignment, AssignmentType
+from keystone.assignment.role_backends.sql import Role
+
 from keystone.identity.backends.sql import User
 from keystone.credential.backends.sql import CredentialModel
 from keystone.openstack.common import jsonutils
@@ -75,9 +78,8 @@ def create_auth(user_name, password, user_extra, tenant_name, description, role,
         query = query.filter_by(name=role)
         ref = query.one()
         role_id = ref.id
-	
-	if not tenant_update:
-	    session.add(project_ref)
+        if not tenant_update:
+            session.add(project_ref)
         session.add(user_ref)
         session.add(RoleAssignment(type=AssignmentType.USER_PROJECT,
                                    actor_id=user_id,
@@ -87,6 +89,6 @@ def create_auth(user_name, password, user_extra, tenant_name, description, role,
         session.add(credential_ref)
 
         blob.pop('trust_id')
-	blob['user_id'] = user_id
-	blob['tenant_id'] = project_id
+        blob['user_id'] = user_id
+        blob['tenant_id'] = project_id
         return blob

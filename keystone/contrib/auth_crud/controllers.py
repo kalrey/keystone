@@ -15,7 +15,7 @@
 from keystone.common import controller
 from keystone import exception
 from keystone import config
-from keystone.openstack.common import log
+from oslo_log import log
 from keystone.contrib.auth_crud.backends.sql import create_auth as create_auth_driver
 
 CONF = config.CONF
