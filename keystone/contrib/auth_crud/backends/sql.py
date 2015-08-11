@@ -17,7 +17,7 @@ from keystone.assignment.role_backends.sql import Role
 
 from keystone.identity.backends.sql import User
 from keystone.credential.backends.sql import CredentialModel
-from keystone.openstack.common import jsonutils
+from oslo_serialization import jsonutils
 from keystone.common import utils
 from keystone import exception
 
